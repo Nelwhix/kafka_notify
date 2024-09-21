@@ -1,11 +1,14 @@
-package main
+package producer
 
 import (
-	"errors"
 	"fmt"
 	"github.com/IBM/sarama"
 	"github.com/Nelwhix/kafka-notify/cmd/producer/handlers"
 	"github.com/Nelwhix/kafka-notify/pkg"
+	"github.com/Nelwhix/kafka-notify/pkg/middlewares"
+	"github.com/Nelwhix/kafka-notify/pkg/models"
+	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/schema"
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
@@ -14,10 +17,10 @@ import (
 const (
 	ProducerPort    = ":8080"
 	KafkaServerAddr = "localhost:9092"
-	KafkaTopic      = "notifications"
 )
 
-var ErrUserNotFoundInProducer = errors.New("user not found")
+var validate *validator.Validate
+var decoder = schema.NewDecoder()
 
 func setupProducer() (sarama.SyncProducer, error) {
 	config := sarama.NewConfig()
@@ -47,16 +50,31 @@ func main() {
 		log.Fatalf("failed to connect to db: %v", err)
 	}
 
-	handler := handlers.Handler{
-		Producer: producer,
-		Conn:     conn,
+	logger, err := pkg.CreateNewLogger()
+	if err != nil {
+		log.Fatalf("failed to connect to db: %v", err)
 	}
 
-	http.HandleFunc("POST /send", handler.SendMessage)
+	validate = validator.New(validator.WithRequiredStructEnabled())
 
-	fmt.Printf("Kafka Producer started at http://localhost:%s/\n", ProducerPort)
+	model := models.Model{
+		Conn: conn,
+	}
 
-	err = http.ListenAndServe(ProducerPort, nil)
+	handler := handlers.Handler{
+		Producer:  producer,
+		Model:     model,
+		Logger:    logger,
+		Decoder:   decoder,
+		Validator: validate,
+	}
+
+	r := http.NewServeMux()
+	r.HandleFunc("POST /send", handler.SendMessage)
+
+	fmt.Printf("Kafka Producer started at http://localhost:%s\n", ProducerPort)
+
+	err = http.ListenAndServe(ProducerPort, middlewares.ContentTypeMiddleware(r))
 
 	if err != nil {
 		log.Printf("failed to run the server: %v", err)
