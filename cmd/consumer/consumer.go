@@ -1,4 +1,4 @@
-package consumer
+package main
 
 import (
 	"context"
@@ -84,7 +84,9 @@ func main() {
 	go setupConsumerGroup(ctx, store)
 	defer cancel()
 
-	handler := handlers.Handler{}
+	handler := handlers.Handler{
+		NotificationStore: store,
+	}
 
 	r := http.NewServeMux()
 	r.HandleFunc("GET /notifications/{userId}", handler.GetNotifications)

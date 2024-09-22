@@ -10,6 +10,11 @@ type baseResponse struct {
 	Message string `json:"message"`
 }
 
+type okResponse struct {
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
 func NewBadRequestResponse(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusBadRequest)
 	response := baseResponse{
@@ -73,8 +78,28 @@ func NewNotFoundResponse(w http.ResponseWriter, message string) {
 
 func NewOKResponse(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusOK)
-	response := baseResponse{
+	response := okResponse{
 		Message: message,
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = w.Write(jsonResponse)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return
+}
+
+func NewOKResponseWithData(w http.ResponseWriter, message string, data interface{}) {
+	w.WriteHeader(http.StatusOK)
+	response := okResponse{
+		Message: message,
+		Data:    data,
 	}
 
 	jsonResponse, err := json.Marshal(response)
