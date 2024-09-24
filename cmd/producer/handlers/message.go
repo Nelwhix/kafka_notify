@@ -9,7 +9,6 @@ import (
 	"github.com/Nelwhix/kafka-notify/pkg"
 	"github.com/Nelwhix/kafka-notify/pkg/models"
 	"github.com/go-playground/validator/v10"
-	"github.com/gorilla/schema"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,9 +16,8 @@ import (
 
 type Handler struct {
 	Producer  sarama.SyncProducer
-	Model     models.Model
+	Model     models.BaseModel
 	Logger    *slog.Logger
-	Decoder   *schema.Decoder
 	Validator *validator.Validate
 }
 
@@ -28,8 +26,6 @@ type SendMessageRequest struct {
 	ToID    string `json:"toID" validate:"required,ulid"`
 	Message string `json:"message" validate:"required"`
 }
-
-var ErrUserNotFoundInProducer = errors.New("user not found")
 
 func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -52,16 +48,16 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.sendKafkaMessage(r.Context(), h.Producer, request)
+	err = h.sendKafkaMessage(r.Context(), request)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFoundInProducer) {
+		if errors.Is(err, pkg.ErrUserNotFoundInProducer) {
 			pkg.NewNotFoundResponse(w, err.Error())
 
 			return
 		}
 
 		h.Logger.Error(err.Error())
-		pkg.NewBadRequestResponse(w, err.Error())
+		pkg.NewInternalServerErrorResponse(w, err.Error())
 
 		return
 	}
@@ -69,15 +65,15 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	pkg.NewOKResponse(w, "Notification sent successfully!")
 }
 
-func (h *Handler) sendKafkaMessage(ctx context.Context, producer sarama.SyncProducer, request SendMessageRequest) error {
+func (h *Handler) sendKafkaMessage(ctx context.Context, request SendMessageRequest) error {
 	fromUser, err := h.Model.FindUserByID(ctx, request.FromID)
 	if err != nil {
-		return ErrUserNotFoundInProducer
+		return pkg.ErrUserNotFoundInProducer
 	}
 
 	toUser, err := h.Model.FindUserByID(ctx, request.ToID)
 	if err != nil {
-		return ErrUserNotFoundInProducer
+		return pkg.ErrUserNotFoundInProducer
 	}
 
 	notification := models.Notification{
@@ -96,7 +92,7 @@ func (h *Handler) sendKafkaMessage(ctx context.Context, producer sarama.SyncProd
 		Value: sarama.StringEncoder(notificationJSON),
 	}
 
-	_, _, err = producer.SendMessage(msg)
+	_, _, err = h.Producer.SendMessage(msg)
 
 	return err
 }

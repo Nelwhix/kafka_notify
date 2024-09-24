@@ -1,6 +1,13 @@
 package models
 
-import "github.com/jackc/pgx/v5"
+import (
+	"context"
+	"github.com/jackc/pgx/v5"
+)
+
+type BaseModel interface {
+	FindUserByID(ctx context.Context, id string) (User, error)
+}
 
 type Model struct {
 	Conn *pgx.Conn

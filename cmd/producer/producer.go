@@ -12,6 +12,8 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 )
 
 const (
@@ -50,9 +52,14 @@ func main() {
 		log.Fatalf("failed to connect to db: %v", err)
 	}
 
-	logger, err := pkg.CreateNewLogger()
+	fileName := filepath.Join("logs", "app_logs.txt")
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("failed to connect to db: %v", err)
+		log.Fatal(err)
+	}
+	logger, err := pkg.CreateNewLogger(f)
+	if err != nil {
+		log.Fatalf("failed to create logger: %v", err)
 	}
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
@@ -63,9 +70,8 @@ func main() {
 
 	handler := handlers.Handler{
 		Producer:  producer,
-		Model:     model,
+		Model:     &model,
 		Logger:    logger,
-		Decoder:   decoder,
 		Validator: validate,
 	}
 

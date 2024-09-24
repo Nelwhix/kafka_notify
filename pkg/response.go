@@ -15,24 +15,6 @@ type okResponse struct {
 	Data    interface{} `json:"data"`
 }
 
-func NewBadRequestResponse(w http.ResponseWriter, message string) {
-	w.WriteHeader(http.StatusBadRequest)
-	response := baseResponse{
-		Message: message,
-	}
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_, err = w.Write(jsonResponse)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return
-}
-
 func NewInternalServerErrorResponse(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusInternalServerError)
 	response := baseResponse{
@@ -47,11 +29,10 @@ func NewInternalServerErrorResponse(w http.ResponseWriter, message string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	return
 }
 
 func NewUnprocessableEntityResponse(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusUnprocessableEntity)
 	response := baseResponse{
 		Message: message,
 	}
@@ -60,10 +41,14 @@ func NewUnprocessableEntityResponse(w http.ResponseWriter, message string) {
 		log.Fatal(err)
 	}
 
-	http.Error(w, string(jsonResponse), http.StatusUnprocessableEntity)
+	_, err = w.Write(jsonResponse)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func NewNotFoundResponse(w http.ResponseWriter, message string) {
+	w.WriteHeader(http.StatusNotFound)
 	response := baseResponse{
 		Message: message,
 	}
@@ -72,8 +57,10 @@ func NewNotFoundResponse(w http.ResponseWriter, message string) {
 		log.Fatal(err)
 	}
 
-	w.WriteHeader(http.StatusNotFound)
-	w.Write(jsonResponse)
+	_, err = w.Write(jsonResponse)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func NewOKResponse(w http.ResponseWriter, message string) {
@@ -91,8 +78,6 @@ func NewOKResponse(w http.ResponseWriter, message string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	return
 }
 
 func NewOKResponseWithData(w http.ResponseWriter, message string, data interface{}) {
